@@ -1,0 +1,114 @@
+#include <WiFiLink.h>
+
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x3F, 16, 2);
+
+int trigPin1 = 7;
+int echoPin1 = 6;
+
+int motion = 3;
+
+char ssid[] = "201321010";
+char pass[] = "kyk9174844";
+String st = "a";
+
+int status = WL_IDLE_STATUS;
+//IPAddress server(172, 24, 1, 136);
+IPAddress server(172, 24, 1, 84);
+
+WiFiClient client;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(trigPin1, OUTPUT);
+  pinMode(echoPin1, INPUT);
+  pinMode(motion, INPUT);
+  // put your setup code here, to run once:
+  while (!Serial);
+  if (WiFi.status() == WL_NO_WIFI_MODULE_COMM) {
+    Serial.println("Communication with WiFi module not established.");
+    while (true);
+  }
+
+  while (status != WL_CONNECTED) {
+    Serial.print("Attempting to connect to SSID: ");
+    Serial.println(ssid);
+    status = WiFi.begin(ssid, pass);
+
+    delay(10000);
+  }
+  Serial.println("Connected to wifi");
+
+  Serial.println("\nStarting connection to server...");
+  while(true)
+  {
+    Serial.println("as");
+    if (client.connect(server, 80)) {
+      Serial.println("connected to server");
+      break;
+    }
+  }
+  Serial.println(WiFi.localIP());
+}
+
+
+void loop() {
+  int red = digitalRead(motion);
+  int pressure = analogRead(A0);
+  float duration1, distance1;
+  int starttime1, finishtime1;
+  Serial.println("start");
+  digitalWrite(trigPin1, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin1, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin1, LOW);
+//  Serial.print("L");
+  for(int x=0;digitalRead(echoPin1)==LOW;x++)
+  {
+    //Serial.print(x);
+  }//Serial.println("");
+//  digitalWrite(echoPin1, LOW);
+  starttime1 = micros();
+//  Serial.print("H");
+  for(int x=0;digitalRead(echoPin1)==HIGH;x++)
+  {
+    //Serial.print(x);
+  }//Serial.println("");
+  finishtime1 = micros();
+  
+  duration1 = finishtime1-starttime1;
+  distance1 = ((float)(340*duration1)/10000)/2;
+  Serial.println(distance1);
+  Serial.println(pressure);
+  Serial.println(red);
+  int wake=0;
+  if(distance1>20 || pressure<10/* || red==1*/)
+  {
+    wake=1;
+  }
+  
+  delay(100);
+  // put your main code here, to run repeatedly:
+  if (client.connected()) {
+    client.println(String(wake));
+    if (client.available() > 0) {
+
+      String c = client.readStringUntil('\n');
+      //char c = client.read();
+      Serial.print("from server");
+      Serial.println(c);
+      client.flush();
+      delay(100);
+    }
+  }
+  else {
+    Serial.println();
+    Serial.println("disconnecting from server.");
+    client.stop();
+
+    while (true);
+  }
+  st=st+1;
+}
