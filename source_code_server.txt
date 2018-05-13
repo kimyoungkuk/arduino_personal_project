@@ -1,0 +1,135 @@
+#include <Time.h>
+#include <TimeLib.h>
+#include <WiFiLink.h>
+#include <LiquidCrystal_I2C.h>
+#include <LedControl.h>
+
+#define C 262 // 도 
+#define D 294 // 레 
+#define E 330 // 미 
+#define F 349 // 파 
+#define G 392 // 솔 
+#define A 440 // 라 
+#define B 494 // 시 
+
+int tempo = 200;
+int notes[25] = { G, G, A, A, G, G, E, G, G, E, E, D, G, G, A, A, G, G, E, G, E, D, E, C }; 
+
+LiquidCrystal_I2C lcd(0x3F, 16, 2);
+LedControl lc = LedControl(10,9,8,1);
+char ssid[] = "201321010";
+char pass[] = "kyk9174844";
+int status = WL_IDLE_STATUS;
+
+int ledPin = 6;
+int buzzer = 4;
+
+WiFiServer server(80);
+
+void setup() {
+  // initialize serial:
+  Serial.begin(9600);
+  setTime(10,15,05,12,5,2018);
+  lcd.begin();
+  lcd.backlight();
+  lc.shutdown(0,false);
+  lc.setIntensity(0,8);
+  lc.clearDisplay(0);
+  Serial.println("Attempting to connect to WPA network...");
+  Serial.print("SSID: ");
+  Serial.println(ssid);
+  pinMode(ledPin, OUTPUT);
+  pinMode(buzzer, OUTPUT);
+  while(true){
+    status = WiFi.begin(ssid, pass);
+    if ( status != WL_CONNECTED) { 
+      Serial.println("Couldn't get a wifi connection");
+      
+    } 
+    else {Serial.print("server begin");
+      IPAddress myAddress = WiFi.localIP();
+      Serial.println(myAddress);
+      server.begin();
+      break;
+    }
+  }
+}
+
+void loop() {
+  digitalClockDisplay();
+  // listen for incoming clients
+  WiFiClient client = server.available();
+  if (client == true) {
+    int i=0;
+    while(client.connected()){
+      if(client.available()){
+           // read bytes from the incoming client and write them back
+        // to any clients connected to the server:
+        String c = client.readStringUntil('\n');
+        //char c = client.read();
+        Serial.println(c);
+        server.println(c);
+        //server.write(c);
+        IPAddress myAddress = WiFi.localIP();
+        Serial.println(myAddress);
+        if(c[0]=='0' && hour()==10 && minute()==15 && 30<second() && second()<40)
+        {
+          digitalWrite(ledPin, HIGH);
+          //tone(buzzer, 330);
+          if(i==12)
+          {
+            delay(30);
+          }
+          if(i==25)
+          {
+            i=0;
+          }
+          tone (buzzer, notes[i], tempo); 
+          i++;
+          for(int col=0;col<8;col++)
+          {
+            for(int row=0;row<8;row++)
+            {
+              lc.setLed(0,row,col,0);
+            }
+          }
+        }
+        else
+        {
+          digitalWrite(ledPin, LOW);
+          noTone(buzzer);
+          for(int col=0;col<8;col++)
+          {
+            for(int row=0;row<8;row++)
+            {
+              lc.setLed(0,row,col,1);
+            }
+          }
+        }
+        digitalClockDisplay();
+      }
+    }
+    client.stop();
+  }
+}
+void digitalClockDisplay(){
+  String ct = String(hour())+':'+printDigits(minute())+':'+printDigits(second());
+  Serial.println(ct);
+  lcd.clear();
+  lcd.print(ct);
+//  Serial.print(day());
+//  Serial.print(month());
+//  Serial.print(year());
+  
+}
+ 
+String printDigits(int digits){
+  if(digits < 10)
+  {
+    return '0'+String(digits);
+  }
+  else
+  {
+    return String(digits);
+  }
+}
